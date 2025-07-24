@@ -2,7 +2,7 @@
 // it is used in the older version of Node.js
 // In newer versions, you can use import { config } from 'dotenv'; config();
 
-import dotenv from "dotenv";
+import dotenv from "dotenv"; // dotenv is used to load environment variables from a .env file and make them available in process.env
 
 import connectDB from "./db/index.js"; // Import the database connection function
 import { app } from "./app.js";
