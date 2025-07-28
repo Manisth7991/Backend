@@ -11,8 +11,8 @@ dotenv.config({ path: "./.env" }); // Load environment variables from .env file
 
 connectDB()
   .then(() => {
-    app.listen(process.env.PORT || 8000, () => {
-      console.log(`Server is running on port ${process.env.PORT || 8000}`);
+    app.listen(process.env.PORT || 8080, () => {
+      console.log(`Server is running on port ${process.env.PORT || 8080}`);
     });
   })
   .catch((error) => {
