@@ -1,8 +1,9 @@
 import {Router} from "express";
-import { registerUser } from '../controllers/user.controller.js';
+import { registerUser ,loginUser , logoutUser} from '../controllers/user.controller.js';
 const router = Router();
 import { upload } from '../middlewares/multer.middleware.js';
-
+import { verifyJWT } from '../middlewares/auth.middleware.js';
+import { refreshAccessToken } from '../controllers/user.controller.js';
 
 // router.route("/register").post(registerUser); // This line is commented out to use multer for file uploads
 
@@ -24,5 +25,15 @@ router.route("/register").post(
     ]),
     registerUser
 );
+
+router.route("/login").post(loginUser);
+
+// secured routes
+router.route("/logout").post(
+    verifyJWT, // verifyJWT middleware will check if the user is authenticated
+    logoutUser
+);
+
+router.route("/refresh-token").post(refreshAccessToken);
 
 export default router;
