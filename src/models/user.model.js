@@ -29,6 +29,10 @@ const userSchema = new mongoose.Schema({
     type: String, // cloudinary url is stored here
     required: true,
   },
+  avatarPublicId: {
+    type: String, // stores Cloudinary public_id for deletion
+    default: "",  // optional default
+  },
   coverImage: {
     type: String, // cloudinary url is stored here
   },

@@ -5,6 +5,7 @@ import {User} from "../models/user.model.js";
 import {uploadOnCloudinary} from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
+import { deleteFromCloudinary } from "../utils/cloudinary.js";  
 
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
@@ -107,9 +108,11 @@ const registerUser = asyncHandler(async (req, res) => {
         email,
         password,
         fullName,
-        avatar: avatar,
-        coverImage: coverImage || "",
-    })
+        avatar: avatar.secure_url,            // ✅ only store the string URL
+        avatarPublicId: avatar.public_id,     // ✅ store public_id separately
+        coverImage: coverImage?.secure_url || "", // ✅ get only the URL
+    });
+
 
     const createdUser = await User.findById(user._id).select("-password -refreshToken"); // Exclude password and refreshToken from the response
     if (!createdUser) {
@@ -287,29 +290,37 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-    const avatarLocalPath = req.file?.path;
-    if (!avatarLocalPath) {
-        throw new apiError("Avatar image is required", 400);
-    }
+    // console.log("Request files:", req.file);
+  const avatarLocalPath = req.file?.path;
+  if (!avatarLocalPath) {
+    throw new apiError("Avatar image is required", 400);
+  }
 
-    const avatar = await uploadOnCloudinary(avatarLocalPath);
-    if (!avatar?.secure_url) {
-        throw new apiError("Failed to upload avatar image", 500);
-    }
+  // 1. Upload new image
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatar?.secure_url || !avatar?.public_id) {
+    throw new apiError("Failed to upload avatar image", 500);
+  }
 
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        { $set: { avatar: avatar.secure_url } },
-        { new: true }
-    ).select("-password");
+  // 2. Find the user
+  const currentUser = await User.findById(req.user._id);
+  if (!currentUser) {
+    throw new apiError("User not found", 404);
+  }
 
-    if (!user) {
-        throw new apiError("Failed to update user avatar", 500);
-    }
+  // 3. If there is an old avatar public_id, delete it
+  if (currentUser.avatarPublicId) {
+    await deleteFromCloudinary(currentUser.avatarPublicId);
+  }
 
-    return res
-        .status(200)
-        .json(new apiResponse(200, { user }, "User avatar updated successfully"));
+  // 4. Update user with new avatar URL and public_id
+  currentUser.avatar = avatar.secure_url;
+  currentUser.avatarPublicId = avatar.public_id;
+  await currentUser.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new apiResponse(200, { user: currentUser }, "User avatar updated successfully"));
 });
 
 
@@ -351,5 +362,5 @@ export {
     getCurrentUser,
     updateAccountDetails, 
     updateUserAvatar,
-    updateUserCoverImage
+    updateUserCoverImage,
 };

@@ -10,35 +10,46 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// console.log("Cloudinary config: ", {
-//   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-//   api_key: process.env.CLOUDINARY_API_KEY,
-//   api_secret: process.env.CLOUDINARY_API_SECRET,
-// });
-
-
-
+// Upload function
 const uploadOnCloudinary = async (localFilePath) => {
     try {
         if (!localFilePath) {
             throw new Error('No file path provided for upload');
         }
- 
-        // Upload the file to Cloudinary
-        // resource_type is set to 'auto' to handle both images and videos
+
         const result = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: 'auto', // Automatically detect the resource type (image, video, etc.)
+            resource_type: 'auto',
         });
-        console.log('File uploaded successfully:', result.secure_url);
-        fs.unlinkSync(localFilePath); // Delete the file after upload
-        return result.secure_url; // Return the secure URL of the uploaded file
+
+        fs.unlinkSync(localFilePath); // Delete local file after upload
+
+        console.log('✅ File uploaded successfully:', result.secure_url);
+
+        // ✅ Return both secure_url and public_id
+        return {
+            secure_url: result.secure_url,
+            public_id: result.public_id,
+        };
     } catch (error) {
         if (fs.existsSync(localFilePath)) {
-            fs.unlinkSync(localFilePath);
+            fs.unlinkSync(localFilePath); // Clean up
             console.log("🧹 Local file deleted after failed upload");
         }
         console.error('❌ Error uploading to Cloudinary:', error.message);
         throw error;
     }
-}
-export { uploadOnCloudinary };
+};
+
+// Delete function
+const deleteFromCloudinary = async (public_id) => {
+    try {
+        const result = await cloudinary.uploader.destroy(public_id);
+        console.log("🗑️ Image deleted from Cloudinary:", result);
+        return result;
+    } catch (error) {
+        console.error("❌ Cloudinary image deletion failed:", error.message);
+        throw new Error("Cloudinary image deletion failed");
+    }
+};
+
+export { uploadOnCloudinary, deleteFromCloudinary };

@@ -11,7 +11,6 @@ export const verifyJWT = asyncHandler(async (req, res, next) => { // here res is
 
         // Method 2: Check for access token in cookies or headers
         const token = req.cookies?.accessToken || req.headers.authorization?.replace("Bearer ", "");
-;
 
         if (!token) {
             throw new apiError("Access token is required", 401);
