@@ -6,7 +6,7 @@ import {uploadOnCloudinary} from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
 import { deleteFromCloudinary } from "../utils/cloudinary.js";  
-import e from "express";
+import mongoose from "mongoose";
 
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
@@ -412,7 +412,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         }
     ])
 
-    console.log(channel);
+    // console.log(channel);
 
     if (!channel || channel.length === 0) {
         throw new apiError("Channel not found", 404);
@@ -488,5 +488,6 @@ export {
     updateAccountDetails, 
     updateUserAvatar,
     updateUserCoverImage,
-    getUserChannelProfile
+    getUserChannelProfile,
+    getUserWatchedHistory
 };
