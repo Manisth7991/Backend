@@ -6,6 +6,7 @@ import {uploadOnCloudinary} from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
 import { deleteFromCloudinary } from "../utils/cloudinary.js";  
+import e from "express";
 
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
@@ -351,6 +352,130 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 });
 
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    const {username} = req.params;
+    if (!username) {
+        throw new apiError("Username is required", 400);
+    }
+
+    const channel = await User.aggregate([
+        { 
+            $match: { 
+                username: username?.toLowerCase() 
+            } 
+        },
+
+        // we are finding the subscriber count(Kitane subscriber hai to channel ko dekho)
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+
+        // we are finding the subscribed to count(Kitane channel ko subscribe kiya hai to subscriber ko dekho)
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: { $size: "$subscribers" }, // field hota hai to uske pahale $ lagate hai
+                channelsSubscribedToCount: { $size: "$subscribedTo" },
+                isSubscribed: { // check if the current user is subscribed to this channel
+                    // $in operator checks if the current user ID is in the subscribers array
+                    $cond: {
+                        if: { $in: [req.user?._id, "$subscribers.subscriber"] }, // check if current user is in the subscribers array
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: { // Project is used to include or exclude fields from the output
+                fullName: 1,
+                username: 1,
+                subscribersCount: 1,
+                channelsSubscribedToCount: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                email: 1,
+            }
+        }
+    ])
+
+    console.log(channel);
+
+    if (!channel || channel.length === 0) {
+        throw new apiError("Channel not found", 404);
+    }
+
+    return res
+        .status(200)
+        .json(new apiResponse(200, { channel: channel[0] }, "User channel profile fetched successfully"));
+});
+
+
+// Pipeline to get user watched history
+
+
+const getUserWatchedHistory = asyncHandler(async (req, res) => {
+    const user = await User.aggregate([
+        {
+            $match:{
+                _id: new mongoose.Types.ObjectId(req.user._id) // Match the user by ID we are doing this because we are using aggregate
+            }
+        },
+        {
+            $lookup: {
+                from: "videos", // The collection to join with(ham users me hai aur videos me join kar rahe hai so we are looking for videos)
+                localField: "watchedHistory", // ham users me watchedHistory field se join kar rahe hai
+                foreignField: "_id", // ham videos me _id se join kar rahe hai
+                as: "watchedHistory", // Name of the new array field to add to the user document
+                pipeline: [ // Pipeline to filter and project the fields we want from the video documents and also to join with the owner
+                    {
+                        $lookup: {
+                            from: "users", // ham videos me hai aur videos me owner se join kar rahe hai so we are looking for users
+                            localField: "owner", // ham videos me owner se join kar rahe hai
+                            foreignField: "_id", // ham users me _id se join kar rahe hai
+                            as: "owner", // Name of the new array field to add to the video document
+                            pipeline: [
+                                {
+                                    $project: { // Project used kar ke hum owner ki fields ko select kar rahe hai ki kaun kaun se fields chahiye
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1,
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    { // yah ham use kar rahe taki ham sirf first owner ko hi le
+                        $addFields: { // Add fields to the video document
+                            isOwner: { // Check if the current user is the owner of the video
+                                $first:"$owner" // $first operator is used to get the first element of the owner array
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+    ])
+
+
+    return res
+        .status(200)
+        .json(new apiResponse(200, { user: user[0].watchHistory }, "User watched history fetched successfully"));
+});
+
 
 export { 
     registerUser , 
@@ -363,4 +488,5 @@ export {
     updateAccountDetails, 
     updateUserAvatar,
     updateUserCoverImage,
+    getUserChannelProfile
 };
