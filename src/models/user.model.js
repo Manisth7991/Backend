@@ -56,7 +56,9 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-userSchema.methods.isPasswordCorrect = async function (password) {
+userSchema.methods.isPasswordCorrect = async function (password) { 
+  //Compares plaintext password with hashed password in DB.
+  // this.password refers to the hashed value from MongoDB.
   return await bcrypt.compare(password, this.password); // returns true if password matches and false otherwise
 };
 
